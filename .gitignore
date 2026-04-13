@@ -1,0 +1,69 @@
+# Unreal Engine specific
+*.VC.db
+*.VC.opendb
+*.unrealbuildcache
+*.log
+*.ilk
+*.exp
+*.lib
+*.pdb
+*.dmp
+*.psd
+*.bak
+*.rej
+*.orig
+*.scc
+*.svn
+*.xcuserstate
+xcuserdata/
+
+# Binaries
+/Binaries/
+/Intermediate/
+/DerivedDataCache/
+Saved/
+
+# Visual Studio
+.vs/
+*.opensdf
+*.sdf
+*.vcxproj.filters
+*.vcxproj.user
+*.vcxproj.vs.*
+
+# Config files (contains sensitive information)
+Config/DefaultGame.ini
+Config/DefaultEngine.ini
+Config/DefaultInput.ini
+Config/DefaultGameUserSettings.ini
+
+# IDE
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime files
+*.exe
+*.sh
+*.app
+*.dylib
+
+# Editor files
+*.uasset
+*.umap
+*.uproject
+!OdraDekScanner.uproject
+
+# Compiled scripts
+*.dll
+*.so
+*.dylib
+*.pdb
+*.a
+*.lib
+*.o
+*.obj
