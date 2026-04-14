@@ -17,6 +17,10 @@
 			"TargetAllowList": [
 				"Editor"
 			]
+		},
+		{
+			"Name": "BlueprintScreenshotTool",
+			"Enabled": true
 		}
 	]
 }

@@ -1,0 +1,94 @@
+// ============================================================
+// Sobel Scanner - Post Process Custom Node HLSL (UE5.6)
+// ============================================================
+// 深度扫描效果：扫描波从摄像头位置向外扩散，
+// 扫过的区域高亮显示轮廓线，然后逐渐消失。
+//
+// UE5.6 采样函数：
+//   CalcSceneColor(float2 UV) → float3 场景颜色
+//   CalcSceneDepth(float2 UV) → float  线性深度(cm)
+//
+// 前提：材质图中必须有 SceneTexture 节点且连线到 Custom 节点：
+//   - SceneTexture(SceneColor).Color → Custom 节点的 SceneColorInput
+//   - SceneTexture(SceneDepth).Color → Custom 节点的 SceneDepthInput
+//   (这两个输入在代码中不使用，仅用于注册纹理)
+//
+// Inputs:
+//   UV                float2  TexCoord[0]
+//   ViewSize          float2  ViewSize 节点
+//   Time              float   Time 节点
+//   ScanSpeed         float   扫描速度（默认 0.15）
+//   MaxScanDepth      float   最大扫描深度 cm（默认 5000）
+//   TrailWidth        float   拖尾宽度 0~1（默认 0.3）
+//   EdgeColor         float3  高亮颜色（默认 0,1,0.5）
+//   EdgeIntensity     float   轮廓亮度（默认 3.0）
+//   EdgeThreshold     float   检测灵敏度（默认 0.1）
+//   DepthSensitivity  float   深度权重（默认 0.001）
+//   ColorSensitivity  float   颜色权重（默认 1.0）
+//   SceneColorInput   float4  (连线用，代码中不使用)
+//   SceneDepthInput   float4  (连线用，代码中不使用)
+// Output: Float3 (RGB)
+// ============================================================
+
+float2 texel = 1.0 / ViewSize;
+
+// === Depth-based Scanning Wave ===
+float linearDepth = CalcSceneDepth(UV);
+float depth = saturate(linearDepth / MaxScanDepth);
+
+float waveFront = frac(Time * ScanSpeed);
+float scanDist = waveFront - depth;
+if (scanDist < 0) scanDist += 1.0;
+
+// Trail: quadratic fade behind wave front
+float trail = 0;
+if (scanDist > 0 && scanDist < TrailWidth)
+{
+    trail = pow(1.0 - scanDist / TrailWidth, 2.0);
+}
+
+// Bright scan shell at wave front
+float frontGlow = exp(-scanDist * scanDist * 2000.0);
+
+// === Sobel Edge Detection (3x3) ===
+float2 off[9] = {
+    float2(-1,-1), float2(0,-1), float2(1,-1),
+    float2(-1, 0), float2(0, 0), float2(1, 0),
+    float2(-1, 1), float2(0, 1), float2(1, 1)
+};
+
+float d[9];
+float l[9];
+
+[unroll]
+for(int i = 0; i < 9; i++)
+{
+    float2 suv = UV + off[i] * texel;
+    d[i] = CalcSceneDepth(suv);
+    float3 c = CalcSceneColor(suv);
+    l[i] = dot(c, float3(0.299, 0.587, 0.114));
+}
+
+// Sobel depth gradients
+float gx_d = (d[2] + 2.0*d[5] + d[8]) - (d[0] + 2.0*d[3] + d[6]);
+float gy_d = (d[6] + 2.0*d[7] + d[8]) - (d[0] + 2.0*d[1] + d[2]);
+float edgeD = sqrt(gx_d*gx_d + gy_d*gy_d) * DepthSensitivity;
+
+// Sobel color gradients
+float gx_c = (l[2] + 2.0*l[5] + l[8]) - (l[0] + 2.0*l[3] + l[6]);
+float gy_c = (l[6] + 2.0*l[7] + l[8]) - (l[0] + 2.0*l[1] + l[2]);
+float edgeC = sqrt(gx_c*gx_c + gy_c*gy_c) * ColorSensitivity;
+
+// Soft threshold edge mask
+float edgeMask = smoothstep(EdgeThreshold * 0.8, EdgeThreshold * 1.2, edgeD + edgeC);
+
+// === Combine ===
+float3 scene = CalcSceneColor(UV);
+
+// Edges only visible in trail zone
+float3 edges = EdgeColor * edgeMask * trail * EdgeIntensity;
+
+// Scan shell glow at wave front
+float3 scanShell = EdgeColor * frontGlow * 0.4;
+
+return scene + edges + scanShell;
