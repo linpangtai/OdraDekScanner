@@ -53,10 +53,12 @@ Thumbs.db
 *.dylib
 
 # Editor files
-*.uasset
-*.umap
 *.uproject
 !OdraDekScanner.uproject
+
+# Exclude External Actors and Objects
+Content/__ExternalActors__/
+Content/__ExternalObjects__/
 
 # Compiled scripts
 *.dll
